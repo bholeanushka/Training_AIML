@@ -8,3 +8,6 @@ fruits.insert(1,'peach')
 print(fruits)
 fruits.remove('pear')
 print(fruits)
+fruits.pop()
+print(fruits)
+
