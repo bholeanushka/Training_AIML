@@ -46,3 +46,8 @@ Set marks = 95, course = "Advance AI"
 where id = 2;
 select *  from Students;
 ```
+## 8. Delelting Values
+``` sql
+Delete from Students where id = 2;
+select *  from Students;
+```
