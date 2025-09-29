@@ -113,6 +113,58 @@ DELIMITER ;
 
 CALL GetFullOrderDetails();
 ```
+``` sql
+-- Get Order detail for particular customer
+DELIMITER $$
+CREATE PROCEDURE GetCustomerOrders(IN cust_id INT)
+BEGIN
+SELECT o.order_id,
+p.product_name,
+od.quantity,
+p.price,
+(od.quantity * p.price) AS total
+FROM orders o 
+join OrderDetails od on o.order_id = od.order_id
+join Products p on od.product_id = p.product_id
+where o.customer_id = cust_id;
+END $$
+DELIMITER ;
 
+CALL GetCustomerOrders(1);
+```
+```sql
+-- MONTHLY SALES
+DELIMITER $$
+CREATE PROCEDURE GetMonthlySales(IN month_no INT,IN year_no INT)
+BEGIN
+SELECT (o.order_date) AS month , YEAR(o.order_date) AS year,
+SUM(od.quantity * p.price) AS total_sales
+FROM orders o 
+join OrderDetails od on o.order_id = od.order_id
+join Products p on od.product_id = p.product_id
+where MONTH(o.order_date) = month_no AND YEAR(o.order_date) = year_no
+GROUP BY month , year;
+END $$
+DELIMITER ;
 
+CALL GetMonthlySales(9,2025);
+```
+```sql
+-- GET TOP 3 PRODUCTS
+DELIMITER $$
+CREATE PROCEDURE GetTopProducts()
+BEGIN
+SELECT p.product_name,
+SUM(od.quantity) AS total_sold,
+SUM(od.quantity * p.price) AS revenue
+FROM  OrderDetails od
+join Products p on od.product_id = p.product_id
+GROUP BY p.product_id,p.product_name
+order by revenue DESC
+LIMIT 3;
+END $$
+DELIMITER ;
+
+CALL GetTopProducts();
+```
 
