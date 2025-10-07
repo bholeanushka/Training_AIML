@@ -47,6 +47,10 @@ def get_employee(emp_id: int):
 
 @app.post("/employees",status_code=201)
 def add_employee(emp: Employee):
+    for e in employees:
+        if e["id"] == emp.id:
+            raise HTTPException(status_code=400, detail="Employee ID already exists")
+
     employees.append(emp.dict())
     return{"message":"Employee added successfully","employee":emp}
 
