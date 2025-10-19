@@ -11,8 +11,9 @@ import time
 import traceback
 import pandas as pd
 from etl import run_etl
-import queue
+import pika
 from Analytics import generate_student_insights
+import json
 
 app = FastAPI()
 
@@ -127,32 +128,66 @@ def delete_student(id: int):
     return {"message": "Student deleted successfully"}
 
 @app.post("/process-etl")
-def process_etl(background_tasks: BackgroundTasks):
-    def producer_consumer():
-        # Producer: Add task
+def process_etl():
+    try:
+        # Step 1: Producer — send task to RabbitMQ
+        connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
+        channel = connection.channel()
+        channel.queue_declare(queue="etl_tasks", durable=True)
+
         csv_path = "data/marks.csv"
-        task_queue = queue.Queue()
-        task_queue.put(csv_path)
-        logging.info(f"Producer: Task added for {csv_path}")
-        # print(f"Producer: Task added for {csv_path}")
+        message = json.dumps({"csv_path": csv_path})
+        channel.basic_publish(
+            exchange="",
+            routing_key="etl_tasks",
+            body=message,
+            properties=pika.BasicProperties(delivery_mode=2)
+        )
+        connection.close()
+        logging.info(f"Producer: Task queued for {csv_path}")
 
-        # Consumer: Process task
-        while not task_queue.empty():
-            task = task_queue.get()
-            # print(f"Consumer: Processing {task}")
-            logging.info(f"Consumer: Processing {task}")
-            try:
-                start = time.time()
-                run_etl(task)
-                end = time.time()
-                # print(f"Consumer: ETL finished in {end - start:.2f} seconds")
-                logging.info(f"CConsumer: ETL finished in {end - start:.2f} seconds")
-            except Exception as e:
-                # print(f"Consumer: Error processing {task} → {e}")
-                logging.info(f"Consumer: Error processing {task} → {e}")
+        # Step 2: Consumer — fetch and process task immediately
+        def consume_once():
+            connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
+            channel = connection.channel()
+            channel.queue_declare(queue="etl_tasks", durable=True)
 
-    background_tasks.add_task(producer_consumer)
-    return {"status": "ETL task started"}
+            method_frame, header_frame, body = channel.basic_get(queue="etl_tasks", auto_ack=False)
+            if method_frame:
+                task = json.loads(body)
+                logging.info(f"Consumer: Processing {task['csv_path']}")
+                try:
+                    start = time.time()
+                    run_etl(task['csv_path'])
+                    end = time.time()
+                    logging.info(f"Consumer: ETL finished in {end - start:.2f} seconds")
+
+                    df = pd.read_csv(csv_path)
+                    conn = get_connection()
+                    cursor = conn.cursor()
+
+                    for _, row in df.iterrows():
+                        cursor.execute("""
+                                        INSERT INTO marks (StudentID, Maths, Python, ML)
+                                        VALUES (%s, %s, %s, %s)
+                                    """, (row["StudentID"], row["Maths"], row["Python"], row["ML"]))
+
+                    conn.commit()
+                    logging.info(f"Marks Table Updated in database")
+                    conn.close()
+                    channel.basic_ack(delivery_tag=method_frame.delivery_tag)
+                except Exception as e:
+                    logging.error(f"Consumer: Error → {e}")
+                    channel.basic_nack(delivery_tag=method_frame.delivery_tag)
+            else:
+                logging.warning("Consumer: No task found in queue")
+            connection.close()
+
+        consume_once()
+        return JSONResponse(content={"message": "ETL task processed successfully"})
+
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.post("/generate-analytics")
 def generate_analytics():
@@ -166,7 +201,6 @@ def generate_analytics():
     # Convert to DataFrame
     df = pd.DataFrame(stud, columns=columns)
     res = generate_student_insights(df)
-    logging.info(f"Analytics Report generated")
 
     # Optional: return as JSON
     return JSONResponse(content={
