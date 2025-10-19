@@ -1,1 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Student Management</title>
+  <link rel="stylesheet" href="/frontend/style.css" />
+</head>
+<body>
+  <h1>Student Management System</h1>
 
+  <!-- Form to Add/Update Student -->
+  <form id="studentForm">
+    <input type="number" id="studentId" placeholder="Student ID" required />
+    <input type="text" id="name" placeholder="Name" required />
+    <input type="number" id="age" placeholder="Age" required />
+    <input type="text" id="course" placeholder="Course" required />
+    <button type="submit">Add / Update Student</button>
+  </form>
+
+  <h2>Students List</h2>
+  <button onclick="fetchStudents()">Refresh List</button>
+  <ul id="studentList"></ul>
+
+  <button onclick="runETL()">Run ETL</button>
+  <button onclick="generateInsights()">Generate Insights</button>
+
+
+  <script src="/frontend/scripts.js"></script>
+</body>
+</html>
