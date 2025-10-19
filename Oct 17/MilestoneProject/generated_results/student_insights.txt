@@ -1,0 +1,11 @@
+Top 3 Students by Percentage:
+ StudentID   Name Course  Percentage
+       103 Sophia     AI   91.666667
+       101   Neha     AI   84.333333
+       105  Meena     ML   84.000000
+
+Average Marks per Course:
+        Maths  Python         ML  TotalMarks  Percentage
+Course                                                  
+AI       72.0    79.0  76.666667  227.666667   75.888889
+ML       72.5    79.0  72.000000  223.500000   74.500000
